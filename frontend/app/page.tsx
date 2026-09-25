@@ -1,12 +1,76 @@
 import { ArrowRight, Github, Search, ShieldCheck, Sparkles } from "lucide-react";
 import Link from "next/link";
+import RobotAssistant from "../components/RobotAssistant";
+
+function BrandMark() {
+	return (
+		<span className="brand-mark" aria-hidden="true">
+			<svg viewBox="0 0 80 80" role="img">
+				<g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+					<path d="M40 8v64M8 40h64M18 18l44 44M18 62l44-44" strokeWidth="4.5" opacity="0.9" />
+					<circle cx="40" cy="40" r="11" strokeWidth="3" opacity="0.8" />
+				</g>
+			</svg>
+		</span>
+	);
+}
 
 export default function LandingPage() {
 	return <main className="min-h-screen">
-		<header className="mx-auto flex max-w-[1240px] items-center justify-between px-8 py-7 max-[900px]:px-[18px]"><Link className="flex items-center gap-3 font-display text-sm font-semibold tracking-wide" href="/"><span className="flex h-8 w-8 items-center justify-center border border-focus text-focus"><span className="h-2 w-2 bg-signal" /></span> MIGRATION REHEARSAL</Link><a className="flex items-center gap-2 font-mono text-xs text-muted transition-colors hover:text-ink" href="https://github.com/Sarthak-madan334/MRA"><Github size={15} /> Sarthak-madan334/MRA</a></header>
-		<section className="mx-auto flex min-h-[calc(100vh-88px)] max-w-[1240px] flex-col justify-center px-8 pb-24 pt-12 max-[900px]:px-[18px]">
-			<div className="max-w-[900px] animate-reveal"><div className="eyebrow mb-6">Database change intelligence / local rehearsal</div><h1 className="max-w-[850px] font-display text-[clamp(40px,5.4vw,76px)] font-medium leading-[1.02] tracking-[-0.04em]">Your migration passes on normal data.<br /><span className="text-alert">We find the 2% that doesn&apos;t.</span></h1><p className="mt-8 max-w-[570px] text-lg leading-8 text-muted">Run schema changes against data engineered to expose the conditions production quietly accumulated.</p><div className="mt-9 flex flex-wrap gap-3"><Link className="button-primary" href="/connect">Connect a Repo <ArrowRight size={16} /></Link><Link className="button-secondary" href="/run/demo">View rehearsal surface <Search size={16} /></Link></div></div>
-			<div className="mt-28 grid max-w-[850px] grid-cols-3 border-y border-border py-7 max-[600px]:grid-cols-1 max-[600px]:gap-7"><div className="flex items-start gap-4"><Sparkles className="mt-1 text-focus" size={19} /><div><div className="font-display font-medium">Generate hostile data</div><div className="mt-1 text-sm text-muted">Shape the edge cases.</div></div></div><div className="flex items-start gap-4"><ShieldCheck className="mt-1 text-signal" size={19} /><div><div className="font-display font-medium">Rehearse the change</div><div className="mt-1 text-sm text-muted">Run the real workload.</div></div></div><div className="flex items-start gap-4"><Search className="mt-1 text-alert" size={19} /><div><div className="font-display font-medium">Prove the finding</div><div className="mt-1 text-sm text-muted">Leave a reproducible case.</div></div></div></div>
+		<header className="hero-header">
+			<Link className="brand-link" href="/">
+				<BrandMark />
+				<span className="brand-text">MIGRATION REHEARSAL</span>
+			</Link>
+			<a className="repo-link" href="https://github.com/Sarthak-madan334/MRA">
+				<Github size={15} />
+				<span>Sarthak-madan334/MRA</span>
+			</a>
+		</header>
+		<section className="hero-shell">
+			<div className="hero-spotlight" aria-hidden="true" />
+			<div className="hero-copy">
+				<div className="eyebrow">Database change intelligence / local rehearsal</div>
+				<h1 className="hero-title">
+					Your migration passes on normal data.<br />
+					<span className="highlight-callout">We find the 2% that doesn&apos;t.</span>
+				</h1>
+				<p className="hero-subtitle">Run schema changes against data engineered to expose the conditions production quietly accumulated.</p>
+				<div className="hero-actions">
+					<Link className="button-primary" href="/connect">
+						<span>Connect a Repo</span>
+						<ArrowRight size={16} />
+					</Link>
+					<Link className="button-secondary" href="/run/demo">
+						<span>View rehearsal surface</span>
+						<Search size={16} />
+					</Link>
+				</div>
+			</div>
+			<div className="feature-grid">
+				<div className="feature-item">
+					<Sparkles className="feature-icon focus" size={19} />
+					<div>
+						<div className="feature-label">Generate hostile data</div>
+						<div className="feature-copy">Shape the edge cases.</div>
+					</div>
+				</div>
+				<div className="feature-item">
+					<ShieldCheck className="feature-icon signal" size={19} />
+					<div>
+						<div className="feature-label">Rehearse the change</div>
+						<div className="feature-copy">Run the real workload.</div>
+					</div>
+				</div>
+				<div className="feature-item">
+					<Search className="feature-icon alert" size={19} />
+					<div>
+						<div className="feature-label">Prove the finding</div>
+						<div className="feature-copy">Leave a reproducible case.</div>
+					</div>
+				</div>
+			</div>
 		</section>
+		<RobotAssistant />
 	</main>;
 }
