@@ -1,6 +1,5 @@
 import { ArrowRight, Github, Search, ShieldCheck, Sparkles } from "lucide-react";
 import Link from "next/link";
-import RobotAssistant from "../components/RobotAssistant";
 
 function BrandMark() {
 	return (
@@ -16,6 +15,8 @@ function BrandMark() {
 }
 
 export default function LandingPage() {
+	const InteractiveBotElement = "interactive-bot" as any;
+
 	return <main className="min-h-screen">
 		<header className="hero-header">
 			<Link className="brand-link" href="/">
@@ -70,7 +71,7 @@ export default function LandingPage() {
 					</div>
 				</div>
 			</div>
+			<InteractiveBotElement greeting="Hello! 👋" aria-label="AI assistant" />
 		</section>
-		<RobotAssistant />
 	</main>;
 }
