@@ -1,0 +1,58 @@
+:root {
+	--bg-primary: #0b0e14;
+	--bg-surface: #141821;
+	--bg-surface-raised: #1c2129;
+	--border-subtle: #262c38;
+	--text-primary: #f2f4f8;
+	--text-secondary: #a8b0c0;
+	--accent-signal: #00d9a3;
+	--accent-alert: #ff4d4d;
+	--accent-warn: #ffb020;
+	--accent-focus: #5b8cff;
+	--mono-data: #00ffc2;
+	--font-display: "Space Grotesk", sans-serif;
+	--font-body: "Inter", sans-serif;
+	--font-mono: "JetBrains Mono", monospace;
+}
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* { box-sizing: border-box; }
+
+html { background: var(--bg-primary); }
+
+body {
+	margin: 0;
+	background-color: var(--bg-primary);
+	background-image: linear-gradient(rgba(91, 140, 255, 0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(91, 140, 255, 0.035) 1px, transparent 1px);
+	background-size: 44px 44px;
+	color: var(--text-primary);
+	font-family: var(--font-body);
+}
+
+button, a { -webkit-tap-highlight-color: transparent; }
+
+button:focus-visible, a:focus-visible, input:focus-visible {
+	outline: 2px solid var(--accent-focus);
+	outline-offset: 3px;
+}
+
+.mono { color: var(--mono-data); font-family: var(--font-mono); }
+.eyebrow { color: var(--accent-focus); font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; }
+.shell { margin: 0 auto; max-width: 1240px; padding: 30px 32px 72px; }
+.panel { background: rgba(20, 24, 33, 0.92); border: 1px solid var(--border-subtle); }
+.button-primary { align-items: center; background: var(--accent-focus); border: 1px solid var(--accent-focus); color: white; display: inline-flex; gap: 9px; padding: 13px 18px; font-weight: 600; transition: transform 150ms ease, filter 150ms ease; }
+.button-primary:hover { filter: brightness(1.12); transform: translateY(-1px); }
+.button-secondary { align-items: center; background: transparent; border: 1px solid var(--border-subtle); color: var(--text-primary); display: inline-flex; gap: 9px; padding: 12px 16px; transition: border-color 150ms ease, background 150ms ease; }
+.button-secondary:hover { background: var(--bg-surface-raised); border-color: var(--accent-focus); }
+
+@keyframes node-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(91, 140, 255, 0.42); } 50% { box-shadow: 0 0 0 14px rgba(91, 140, 255, 0); } }
+@keyframes reveal-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.animate-reveal { animation: reveal-up 500ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.node-active { animation: node-pulse 1100ms ease-out infinite; }
+
+@media (max-width: 900px) { .shell { padding: 22px 18px 48px; } }
