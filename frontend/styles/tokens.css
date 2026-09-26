@@ -1491,9 +1491,9 @@ button:focus-visible, a:focus-visible, input:focus-visible {
 .faq-ask-trigger { display: inline-flex; align-items: center; gap: 8px; padding: 0; border: 0; background: transparent; color: var(--accent-focus); font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; cursor: pointer; }
 .faq-ask-trigger:hover { color: var(--mono-data); }
 .faq-input-row { position: relative; display: flex; flex-wrap: wrap; gap: 7px; margin-top: 13px; }
-.faq-input-row input { min-width: 0; flex: 1; padding: 10px; border: 1px solid var(--border-subtle); outline: 0; background: var(--bg-primary); color: var(--text-primary); font-family: var(--font-mono); font-size: 11px; }
+.faq-input-row input { min-width: 0; flex: 1; padding: 10px 14px; border: 1px solid var(--border-subtle); border-radius: 9999px; outline: 0; background: var(--bg-primary); color: var(--text-primary); font-family: var(--font-mono); font-size: 11px; }
 .faq-input-row input:focus { border-color: var(--accent-focus); }
-.faq-input-row > button { padding: 0 12px; border: 1px solid var(--accent-focus); background: transparent; color: var(--accent-focus); font-family: var(--font-mono); font-size: 10px; cursor: pointer; }
+.faq-input-row > button { padding: 0 16px; border: 1px solid var(--accent-focus); border-radius: 9999px; background: transparent; color: var(--accent-focus); font-family: var(--font-mono); font-size: 10px; cursor: pointer; }
 .faq-input-row > button:hover { background: rgba(91, 140, 255, 0.12); }
 .faq-api-answer { flex-basis: 100%; padding-top: 6px; }
 .faq-thread { display: flex; flex-direction: column; min-height: 360px; }
