@@ -2,7 +2,7 @@
 
 import { ArrowRight, Check, ChevronDown, ChevronUp, Circle, Clock3, Database, FileCode2, Github, Play, ShieldCheck, Sparkles, Terminal, TriangleAlert } from "lucide-react";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { askFaqQuestion, createRehearsal, getRunResult, getRunStatus, type FaqTurn, type QueryResult, type RunStage, type RunStatus } from "@/lib/api";
 
 const pipeline = [
@@ -89,6 +89,39 @@ function FaqPanel({ open, setOpen }: { open: boolean; setOpen: (open: boolean) =
 	const [question, setQuestion] = useState("");
 	const [turns, setTurns] = useState<FaqTurn[]>([]);
 	const [loading, setLoading] = useState(false);
+	const triggerRef = useRef<HTMLButtonElement>(null);
+	const panelRef = useRef<HTMLElement>(null);
+	useEffect(() => {
+		if (!open) return;
+
+		const panel = panelRef.current;
+		const focusableSelector = "button:not([disabled]), input:not([disabled]), a[href], [tabindex]:not([tabindex='-1'])";
+		const focusableElements = Array.from(panel?.querySelectorAll<HTMLElement>(focusableSelector) ?? []);
+		focusableElements[0]?.focus();
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (event.key === "Escape") {
+				setOpen(false);
+				return;
+			}
+			if (event.key !== "Tab" || focusableElements.length === 0) return;
+
+			const firstElement = focusableElements[0];
+			const lastElement = focusableElements[focusableElements.length - 1];
+			if (event.shiftKey && document.activeElement === firstElement) {
+				event.preventDefault();
+				lastElement.focus();
+			} else if (!event.shiftKey && document.activeElement === lastElement) {
+				event.preventDefault();
+				firstElement.focus();
+			}
+		};
+
+		window.addEventListener("keydown", handleKeyDown);
+		return () => {
+			window.removeEventListener("keydown", handleKeyDown);
+			triggerRef.current?.focus();
+		};
+	}, [open, setOpen]);
 	const faqs = [
 		["How does the rehearsal work?", "It provisions an isolated Postgres database, seeds it with production-shaped edge cases, runs your migration, then compares representative query plans and latency before and after."],
 		["Is this safe against my schema?", "Yes. The rehearsal runs against a disposable shadow database. It never writes to your production database or changes the schema you connect from."],
@@ -106,7 +139,8 @@ function FaqPanel({ open, setOpen }: { open: boolean; setOpen: (open: boolean) =
 		} finally { setLoading(false); }
 	};
 	return <>
-		<button className="faq-trigger" onClick={() => setOpen(!open)} aria-expanded={open}>QUESTIONS?</button>
-		<aside className={`faq-panel ${open ? "is-open" : ""}`} aria-label="How this works"><div className="faq-panel-header"><div><div className="console-label">REFERENCE / MRA-001</div><h2>{view === "faq" ? "How this works" : "Questions"}</h2></div><button className="faq-close" onClick={() => setOpen(false)} aria-label="Close questions">×</button></div>{view === "faq" ? <><div className="faq-list">{faqs.map(([questionText, answerText], index) => <div className="faq-item" key={questionText}><button className="faq-question" onClick={() => setExpanded(expanded === index ? null : index)}><span>{questionText}</span>{expanded === index ? <ChevronUp size={15} /> : <ChevronDown size={15} />}</button>{expanded === index ? <p className="faq-answer">{answerText}</p> : null}</div>)}</div><div className="faq-ask"><button className="faq-ask-trigger" onClick={() => { setView("thread"); setQuestion(""); }}>ASK SOMETHING ELSE <ArrowRight size={13} /></button></div></> : <div className="faq-thread"><button className="faq-back" onClick={() => setView("faq")}>← Back to questions</button><div className="faq-thread-history" aria-live="polite">{turns.length === 0 ? <div className="faq-empty-state"><p>Ask a question about the rehearsal process, schema safety, or how bisection works.</p><div className="faq-example-chips">{faqs.map(([questionText]) => <button className="faq-example-chip" key={questionText} onClick={() => setQuestion(questionText)}>{questionText}</button>)}</div></div> : turns.map((turn, index) => <div className="faq-turn" key={`${turn.question}-${index}`}><div className="faq-turn-question">{turn.question}</div><div className="faq-turn-answer"><MarkdownAnswer content={turn.answer} /></div></div>)}</div><div className="faq-input-row"><input value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void submitQuestion(); }} placeholder="Ask about the rehearsal process, schema safety, bisection..." aria-label="Ask something else" /><button onClick={() => void submitQuestion()} disabled={loading}>Ask</button></div></div>}</aside>
+		<button ref={triggerRef} className="faq-trigger" onClick={() => setOpen(!open)} aria-expanded={open}>QUESTIONS?</button>
+		<button className={`faq-backdrop ${open ? "is-open" : ""}`} onClick={() => setOpen(false)} aria-label="Dismiss questions overlay" aria-hidden={!open} tabIndex={-1} />
+		<aside ref={panelRef} className={`faq-panel ${open ? "is-open" : ""}`} role="dialog" aria-modal={open} aria-hidden={!open} aria-label="How this works"><div className="faq-panel-header"><div><div className="console-label">REFERENCE / MRA-001</div><h2>{view === "faq" ? "How this works" : "Questions"}</h2></div><button className="faq-close" onClick={() => setOpen(false)} aria-label="Close questions">×</button></div>{view === "faq" ? <><div className="faq-list">{faqs.map(([questionText, answerText], index) => <div className="faq-item" key={questionText}><button className="faq-question" onClick={() => setExpanded(expanded === index ? null : index)}><span>{questionText}</span>{expanded === index ? <ChevronUp size={15} /> : <ChevronDown size={15} />}</button>{expanded === index ? <p className="faq-answer">{answerText}</p> : null}</div>)}</div><div className="faq-ask"><button className="faq-ask-trigger" onClick={() => { setView("thread"); setQuestion(""); }}>ASK SOMETHING ELSE <ArrowRight size={13} /></button></div></> : <div className="faq-thread"><button className="faq-back" onClick={() => setView("faq")}>← Back to questions</button><div className="faq-thread-history" aria-live="polite">{turns.length === 0 ? <div className="faq-empty-state"><p>Ask a question about the rehearsal process, schema safety, or how bisection works.</p><div className="faq-example-chips">{faqs.map(([questionText]) => <button className="faq-example-chip" key={questionText} onClick={() => setQuestion(questionText)}>{questionText}</button>)}</div></div> : turns.map((turn, index) => <div className="faq-turn" key={`${turn.question}-${index}`}><div className="faq-turn-question">{turn.question}</div><div className="faq-turn-answer"><MarkdownAnswer content={turn.answer} /></div></div>)}</div><div className="faq-input-row"><input value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void submitQuestion(); }} placeholder="Ask about the rehearsal process, schema safety, bisection..." aria-label="Ask something else" /><button onClick={() => void submitQuestion()} disabled={loading}>Ask</button></div></div>}</aside>
 	</>;
 }
