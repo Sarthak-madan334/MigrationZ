@@ -19,6 +19,7 @@ export type QueryResult = {
 };
 
 export type RehearsalResult = { run_id: string; verdict: "regressed" | "clean"; queries: QueryResult[] };
+export type FaqTurn = { question: string; answer: string };
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
 
@@ -34,4 +35,4 @@ export function createRehearsal() {
 
 export function getRunStatus(runId: string) { return request<RunStatus>(`/rehearsal/${runId}/status`); }
 export function getRunResult(runId: string) { return request<RehearsalResult>(`/rehearsal/${runId}/result`); }
-export function askFaqQuestion(question: string) { return request<{ answer: string }>("/faq/ask", { method: "POST", body: JSON.stringify({ question }) }); }
+export function askFaqQuestion(question: string, history: FaqTurn[] = []) { return request<{ answer: string }>("/faq/ask", { method: "POST", body: JSON.stringify({ question, history }) }); }

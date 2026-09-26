@@ -33,7 +33,7 @@ def _documentation_context() -> str:
     return ""
 
 
-async def _groq_answer(question: str, context: str) -> str | None:
+async def _groq_answer(question: str, history: list[dict[str, str]], context: str) -> str | None:
     if not settings.groq_api_key:
         logger.warning("Groq FAQ call skipped: GROQ_API_KEY is not configured")
         return None
@@ -68,6 +68,7 @@ async def _groq_answer(question: str, context: str) -> str | None:
             model=settings.groq_model,
             messages=[
                 {"role": "system", "content": system_prompt},
+                *[message for turn in history for message in ({"role": "user", "content": turn["question"]}, {"role": "assistant", "content": turn["answer"]})],
                 {"role": "user", "content": question},
             ],
             temperature=settings.groq_temperature,
@@ -131,5 +132,6 @@ def _answer_from_context(question: str) -> str:
 @router.post("/ask", response_model=FaqAnswerResponse)
 async def ask_faq(request: FaqQuestionRequest) -> FaqAnswerResponse:
     context = _documentation_context()
-    groq_answer = await _groq_answer(request.question, context)
+    history = [turn.model_dump() for turn in request.history]
+    groq_answer = await _groq_answer(request.question, history, context)
     return FaqAnswerResponse(answer=groq_answer or _answer_from_context(request.question))

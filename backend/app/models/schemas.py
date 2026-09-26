@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class HealthResponse(BaseModel):
@@ -68,8 +68,14 @@ class RunResultResponse(BaseModel):
     queries: list[QueryResult]
 
 
+class FaqTurn(BaseModel):
+    question: str
+    answer: str
+
+
 class FaqQuestionRequest(BaseModel):
     question: str
+    history: list[FaqTurn] = Field(default_factory=list)
 
 
 class FaqAnswerResponse(BaseModel):
