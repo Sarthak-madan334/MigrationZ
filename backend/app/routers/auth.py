@@ -33,7 +33,15 @@ def _authorization_url(client_id: str, state: str) -> str:
 
 
 def _set_state_cookie(response: Response, state: str) -> None:
-	response.set_cookie(STATE_COOKIE, state, max_age=600, httponly=True, secure=settings.github_session_cookie_secure, samesite="lax", path="/")
+	response.set_cookie(
+		STATE_COOKIE,
+		state,
+		max_age=600,
+		httponly=True,
+		secure=settings.github_session_cookie_secure,
+		samesite="none" if settings.github_session_cookie_secure else "lax",
+		path="/",
+	)
 
 
 async def _complete_oauth(request: Request, code: str, state: str) -> tuple[str, GitHubUser]:

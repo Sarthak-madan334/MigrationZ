@@ -8,6 +8,7 @@ load_dotenv()
 
 @dataclass(frozen=True)
 class Settings:
+    database_url: str | None = os.getenv("DATABASE_URL")
     postgres_host: str = os.getenv("POSTGRES_HOST", "localhost")
     postgres_port: int = int(os.getenv("POSTGRES_PORT", "5433"))
     postgres_db: str = os.getenv("POSTGRES_DB", "migration_rehearsal")
@@ -22,9 +23,19 @@ class Settings:
     frontend_url: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
     github_session_cookie_secure: bool = os.getenv("GITHUB_SESSION_COOKIE_SECURE", "false").lower() == "true"
     github_session_ttl_seconds: int = int(os.getenv("GITHUB_SESSION_TTL_SECONDS", "28800"))
+    cors_origins: tuple[str, ...] = tuple(
+        origin.strip().rstrip("/")
+        for origin in os.getenv(
+            "CORS_ORIGINS",
+            "http://localhost:3000,http://127.0.0.1:3000",
+        ).split(",")
+        if origin.strip()
+    )
 
     @property
     def postgres_dsn(self) -> str:
+        if self.database_url:
+            return self.database_url
         return (
             f"host={self.postgres_host} port={self.postgres_port} "
             f"dbname={self.postgres_db} user={self.postgres_user} "

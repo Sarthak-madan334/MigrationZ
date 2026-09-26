@@ -61,7 +61,7 @@ def run_phase0(repo_root: Path, row_count: int = 50_000) -> tuple[QueryMeasureme
         return before, after
     finally:
         connection.close()
-        teardown(compose_file)
+        teardown(compose_file, settings)
 
 
 def sample_manifest_path(repo_root: Path) -> Path:
@@ -129,7 +129,7 @@ def _run_rehearsal(
     finally:
         if connection is not None:
             connection.close()
-        teardown(compose_file)
+        teardown(compose_file, settings)
 
 
 def run_rehearsal(
@@ -293,4 +293,4 @@ def _run_bisection(
     finally:
         if connection is not None:
             connection.close()
-        teardown(compose_file)
+        teardown(compose_file, settings)

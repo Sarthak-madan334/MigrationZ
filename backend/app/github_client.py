@@ -68,13 +68,18 @@ def set_session_cookie(response: Response, session_id: str) -> None:
         max_age=settings.github_session_ttl_seconds,
         httponly=True,
         secure=settings.github_session_cookie_secure,
-        samesite="lax",
+        samesite="none" if settings.github_session_cookie_secure else "lax",
         path="/",
     )
 
 
 def clear_session_cookie(response: Response) -> None:
-    response.delete_cookie(SESSION_COOKIE, path="/")
+    response.delete_cookie(
+        SESSION_COOKIE,
+        path="/",
+        secure=settings.github_session_cookie_secure,
+        samesite="none" if settings.github_session_cookie_secure else "lax",
+    )
 
 
 async def github_get(client: httpx.AsyncClient, path: str, token: str, **kwargs) -> httpx.Response:
