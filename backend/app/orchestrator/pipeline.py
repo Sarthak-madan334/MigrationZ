@@ -1,8 +1,14 @@
+from dataclasses import dataclass
 from pathlib import Path
+import re
+from threading import Lock
+from statistics import median
 from typing import Final
 
 import psycopg
+from psycopg import sql as psycopg_sql
 
+from app.bisector.delta_debug import minimize_failing_subset
 from app.config import settings
 from app.generator.corrupt import OrderRow, generate_orders
 from app.generator.schema_introspect import get_phase0_schema
@@ -15,6 +21,15 @@ from app.shadow_db.teardown import teardown
 PHASE0_MIGRATION: Final[str] = "CREATE INDEX orders_status_idx ON orders (status)"
 PHASE1_MIGRATION: Final[str] = "DROP INDEX orders_created_at_idx; CREATE INDEX orders_status_idx ON orders (status)"
 PHASE0_QUERY: Final[str] = "SELECT COUNT(*) FROM orders WHERE status IS NULL"
+_SHADOW_DB_LOCK = Lock()
+
+
+@dataclass(frozen=True)
+class BisectionOutcome:
+    minimal_condition: str
+    minimal_row_count: int
+    bisection_trail: tuple[int, ...]
+    repro_script: str
 
 
 def seed_orders(connection: psycopg.Connection, rows: list[OrderRow]) -> None:
@@ -57,7 +72,7 @@ def validate_sample_manifest(repo_root: Path) -> None:
     load_manifest(sample_manifest_path(repo_root))
 
 
-def run_rehearsal(
+def _run_rehearsal(
     repo_root: Path,
     corruption_profile: dict[str, float | int],
     raw_manifest: str | None,
@@ -106,11 +121,173 @@ def run_rehearsal(
                 "latency_before_ms": round(before.latency_ms, 2),
                 "latency_after_ms": round(after.latency_ms, 2),
                 "regression_factor": round(factor, 2),
-                "verdict": "regressed" if factor >= 3 else "passed",
+                "verdict": "regressed" if _query_regressed(factor, before_plan, after_plan) else "passed",
                 "plan_before": before_plan,
                 "plan_after": after_plan,
             })
         return results
+    finally:
+        if connection is not None:
+            connection.close()
+        teardown(compose_file)
+
+
+def run_rehearsal(
+    repo_root: Path,
+    corruption_profile: dict[str, float | int],
+    raw_manifest: str | None,
+    publish: callable,
+) -> list[dict[str, object]]:
+    """Serialize access to the shared local shadow Postgres service."""
+    with _SHADOW_DB_LOCK:
+        return _run_rehearsal(repo_root, corruption_profile, raw_manifest, publish)
+
+
+def _plan_signature(plan: str) -> tuple[str, ...]:
+    return tuple(re.sub(r"\s+\(cost=.*$", "", line.strip()) for line in plan.splitlines())
+
+
+def _query_regressed(factor: float, before_plan: str, after_plan: str) -> bool:
+	return factor >= 3 or _plan_signature(before_plan) != _plan_signature(after_plan)
+
+
+def _median_query_latency(connection: psycopg.Connection, query: str) -> float:
+    run_query(connection, query)
+    return median(run_query(connection, query).latency_ms for _ in range(5))
+
+
+def _build_repro_script(
+    connection: psycopg.Connection,
+    rows: tuple[OrderRow, ...],
+    query: str,
+) -> str:
+    statements = [
+        "-- Minimal generated dataset that preserves the measured plan regression.",
+        get_phase0_schema().strip() + ";",
+    ]
+    if rows:
+        values = []
+        for row in rows:
+            literals = (
+                row.customer_email,
+                row.status,
+                row.total_cents,
+                row.created_at,
+                row.legacy_format,
+            )
+            values.append("(" + ", ".join(psycopg_sql.Literal(value).as_string(connection) for value in literals) + ")")
+        statements.append(
+            "INSERT INTO orders (customer_email, status, total_cents, created_at, legacy_format) VALUES\n"
+            + ",\n".join(values)
+            + ";"
+        )
+
+    normalized_query = query.strip().rstrip(";")
+    statements.extend((
+        "CREATE INDEX orders_created_at_idx ON orders (created_at);",
+        "ANALYZE orders;",
+        "-- Query plan before the migration.",
+        f"EXPLAIN (ANALYZE, BUFFERS) {normalized_query};",
+        PHASE1_MIGRATION + ";",
+        "ANALYZE orders;",
+        "-- Query plan after the migration.",
+        f"EXPLAIN (ANALYZE, BUFFERS) {normalized_query};",
+    ))
+    return "\n\n".join(statements) + "\n"
+
+
+def run_bisection(
+    repo_root: Path,
+    corruption_profile: dict[str, float | int],
+    query_id: str,
+    query: str,
+    baseline_plan_before: str,
+    baseline_plan_after: str,
+    publish: callable,
+) -> BisectionOutcome:
+    """Recreate a run's data and minimize rows that preserve its plan regression."""
+    with _SHADOW_DB_LOCK:
+        return _run_bisection(
+            repo_root,
+            corruption_profile,
+            query_id,
+            query,
+            baseline_plan_before,
+            baseline_plan_after,
+            publish,
+        )
+
+
+def _run_bisection(
+    repo_root: Path,
+    corruption_profile: dict[str, float | int],
+    query_id: str,
+    query: str,
+    baseline_plan_before: str,
+    baseline_plan_after: str,
+    publish: callable,
+) -> BisectionOutcome:
+    compose_file = repo_root / "infra" / "docker-compose.yml"
+    connection: psycopg.Connection | None = None
+    try:
+        publish("bisecting", 86, f"Recreating generated rows to bisect {query_id}")
+        connection = provision(settings, compose_file)
+        with connection.cursor() as cursor:
+            cursor.execute(get_phase0_schema())
+        connection.commit()
+
+        rows = list(generate_orders(
+            row_count=int(corruption_profile.get("row_count_per_table", 50_000)),
+            null_pressure=float(corruption_profile.get("null_pressure", 0.15)),
+            duplication_rate=float(corruption_profile.get("duplication_rate", 0.05)),
+            legacy_format_rate=float(corruption_profile.get("legacy_format_rate", 0.02)),
+        ))
+        preserve_plan_change = _plan_signature(baseline_plan_before) != _plan_signature(baseline_plan_after)
+
+        def reproduces(candidate: tuple[OrderRow, ...]) -> bool:
+            with connection.cursor() as cursor:
+                cursor.execute("TRUNCATE TABLE orders RESTART IDENTITY")
+                cursor.execute("DROP INDEX IF EXISTS orders_created_at_idx")
+                cursor.execute("DROP INDEX IF EXISTS orders_status_idx")
+            connection.commit()
+
+            seed_orders(connection, list(candidate))
+            with connection.cursor() as cursor:
+                cursor.execute("CREATE INDEX orders_created_at_idx ON orders (created_at)")
+            connection.commit()
+            connection.execute("ANALYZE orders")
+            before_plan = explain_query(connection, query)
+            if not preserve_plan_change:
+                before_latency = _median_query_latency(connection, query)
+
+            with connection.cursor() as cursor:
+                cursor.execute("DROP INDEX orders_created_at_idx")
+                cursor.execute("CREATE INDEX orders_status_idx ON orders (status)")
+            connection.commit()
+            connection.execute("ANALYZE orders")
+            after_plan = explain_query(connection, query)
+            if not preserve_plan_change:
+                after_latency = _median_query_latency(connection, query)
+
+            with connection.cursor() as cursor:
+                cursor.execute("DROP INDEX orders_status_idx")
+                cursor.execute("CREATE INDEX orders_created_at_idx ON orders (created_at)")
+            connection.commit()
+            connection.execute("ANALYZE orders")
+
+            if preserve_plan_change:
+                return _plan_signature(before_plan) != _plan_signature(after_plan)
+            return after_latency >= before_latency * 3
+
+        result = minimize_failing_subset(rows, reproduces)
+        publish("bisecting", 96, f"Found a reproducing subset of {len(result.subset):,} rows")
+        script = _build_repro_script(connection, result.subset, query)
+        return BisectionOutcome(
+            minimal_condition=f"The query regression persists with {len(result.subset):,} generated orders.",
+            minimal_row_count=len(result.subset),
+            bisection_trail=result.trail,
+            repro_script=script,
+        )
     finally:
         if connection is not None:
             connection.close()

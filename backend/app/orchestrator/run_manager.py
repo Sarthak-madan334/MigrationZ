@@ -5,7 +5,7 @@ from pathlib import Path
 from threading import RLock
 from uuid import UUID, uuid4
 
-from app.models.schemas import LogEntry, RunRequest, RunResultResponse, RunStatusResponse
+from app.models.schemas import BisectResponse, LogEntry, RunRequest, RunResultResponse, RunStatusResponse
 from app.orchestrator.pipeline import run_rehearsal
 
 
@@ -14,6 +14,7 @@ class RunRecord:
     request: RunRequest
     status: RunStatusResponse
     result: RunResultResponse | None = None
+    bisections: dict[str, tuple[BisectResponse, str]] = field(default_factory=dict)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -35,6 +36,17 @@ class RunManager:
     def get(self, run_id: UUID) -> RunRecord | None:
         with self._lock:
             return self._runs.get(run_id)
+
+    def get_bisection(self, run_id: UUID, query_id: str) -> tuple[BisectResponse, str] | None:
+        with self._lock:
+            record = self._runs.get(run_id)
+            return record.bisections.get(query_id) if record is not None else None
+
+    def store_bisection(self, run_id: UUID, query_id: str, response: BisectResponse, repro_script: str) -> None:
+        with self._lock:
+            record = self._runs.get(run_id)
+            if record is not None:
+                record.bisections[query_id] = (response, repro_script)
 
     async def _execute(self, run_id: UUID) -> None:
         record = self.get(run_id)
@@ -60,6 +72,9 @@ class RunManager:
             record = self._runs[run_id]
             entry = LogEntry(ts=datetime.now(timezone.utc), level=level, message=message)
             record.status = RunStatusResponse(run_id=run_id, stage=stage, log=[*record.status.log, entry], progress_pct=progress)
+
+    def publish(self, run_id: UUID, stage: str, progress: int, message: str, level: str = "info") -> None:
+        self._publish(run_id, stage, progress, message, level)
 
 
 manager = RunManager(Path(__file__).resolve().parents[3])

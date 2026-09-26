@@ -5,6 +5,10 @@ from typing import Iterator
 from .faker_profiles import build_faker
 
 
+_DATASET_START = datetime(2021, 1, 1, tzinfo=timezone.utc)
+_DATASET_END = datetime(2026, 1, 1, tzinfo=timezone.utc)
+
+
 @dataclass(frozen=True)
 class OrderRow:
     customer_email: str
@@ -37,6 +41,6 @@ def generate_orders(
             customer_email=email,
             status=status,
             total_cents=faker.random_int(min=100, max=250_000),
-            created_at=faker.date_time_between(start_date="-5y", end_date="now", tzinfo=timezone.utc),
+            created_at=faker.date_time_between(start_date=_DATASET_START, end_date=_DATASET_END, tzinfo=timezone.utc),
             legacy_format=index % 100 < int(legacy_format_rate * 100),
         )

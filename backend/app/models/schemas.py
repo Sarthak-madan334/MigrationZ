@@ -46,7 +46,7 @@ class LogEntry(BaseModel):
 
 class RunStatusResponse(BaseModel):
     run_id: UUID
-    stage: Literal["queued", "provisioning", "seeding", "migrating", "querying", "analyzing", "done", "failed"]
+    stage: Literal["queued", "provisioning", "seeding", "migrating", "querying", "analyzing", "bisecting", "done", "failed"]
     log: list[LogEntry]
     progress_pct: int
 
@@ -66,6 +66,18 @@ class RunResultResponse(BaseModel):
     run_id: UUID
     verdict: Literal["regressed", "clean"]
     queries: list[QueryResult]
+
+
+class BisectRequest(BaseModel):
+    query_id: str = Field(min_length=1, max_length=100)
+
+
+class BisectResponse(BaseModel):
+    query_id: str
+    minimal_condition: str
+    minimal_row_count: int
+    bisection_trail: list[int]
+    repro_script_url: str
 
 
 class FaqTurn(BaseModel):
