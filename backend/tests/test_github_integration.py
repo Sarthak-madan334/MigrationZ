@@ -6,6 +6,27 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.routers import auth, repos
+from app.routers.repos import _detect_dialect, _is_migration_path
+
+
+def test_migration_path_detection_covers_common_layouts() -> None:
+	for path in (
+		"migrations/001_add_index.sql",
+		"db/migrate/20260926_add_index.rb",
+		"alembic/versions/abc_add_index.py",
+		"prisma/migrations/20260926000000_add_index/migration.sql",
+		"services/billing/migrations/004_add_column.sql",
+		"db/changelog/changeset_12.sql",
+		"V12__add_index.sql",
+	):
+		assert _is_migration_path(path), path
+
+	for path in ("database/README.sql", "src/query.sql", "README.md"):
+		assert not _is_migration_path(path), path
+
+	assert _detect_dialect("db/migrate/change.php", "") == "php/laravel"
+	assert _detect_dialect("src/migrations/change.ts", "") == "javascript/typescript"
+	assert _detect_dialect("src/migrations/change.py", "") == "python"
 
 
 class FakeResponse:

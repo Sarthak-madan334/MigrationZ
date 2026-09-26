@@ -46,7 +46,7 @@ Lists the authenticated user's public repos. Private-repository support requires
 ```
 
 ### `GET /repos/:id/migrations`
-Detects candidate migration files under common paths (`migrations/`, `db/migrate/`, `alembic/versions/`) on the default branch.
+Detects candidate migration files in common migration directories (`migrations/`, `db/migrate/`, `alembic/versions/`, framework-nested directories such as `prisma/migrations/`, and migration folders nested within an application) and flat Flyway-style versioned SQL files on the default branch.
 
 **Response**
 ```json

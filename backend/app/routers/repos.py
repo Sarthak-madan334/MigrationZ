@@ -1,4 +1,5 @@
 import base64
+import re
 from urllib.parse import quote
 
 import httpx
@@ -9,10 +10,21 @@ from app.models.schemas import GitHubMigration, GitHubMigrationList, GitHubRepo,
 
 router = APIRouter(prefix="/repos", tags=["repos"])
 
-MIGRATION_PREFIXES = ("migrations/", "db/migrate/", "alembic/versions/")
-MIGRATION_SUFFIXES = {".sql", ".py", ".rb"}
+MIGRATION_DIRECTORY_NAMES = {
+	"migration", "migrations", "migrate", "versions", "changesets",
+	"changelog", "changelogs", "drizzle",
+}
+MIGRATION_SUFFIXES = {".sql", ".py", ".rb", ".js", ".ts", ".php"}
 PREVIEW_LIMIT = 1800
 MIGRATION_LIMIT = 100
+
+
+def _is_migration_path(path: str) -> bool:
+	parts = path.replace("\\", "/").lower().split("/")
+	if any(part in MIGRATION_DIRECTORY_NAMES for part in parts[:-1]):
+		return path.lower().endswith(tuple(MIGRATION_SUFFIXES))
+	# Flyway permits a flat migration directory and identifies versions by filename.
+	return bool(re.match(r"^v\d+__.+\.sql$", parts[-1]))
 
 
 def _require_token(request: Request) -> str:
@@ -23,12 +35,19 @@ def _require_token(request: Request) -> str:
 
 
 def _detect_dialect(path: str, content: str) -> str:
-	if path.startswith("alembic/versions/"):
+	parts = path.replace("\\", "/").lower().split("/")
+	if "versions" in parts and path.lower().endswith(".py"):
 		return "python/alembic"
 	if path.endswith(".rb"):
 		return "ruby/activerecord"
+	if path.lower().endswith(".php"):
+		return "php/laravel"
+	if path.lower().endswith((".js", ".ts")):
+		return "javascript/typescript"
 	if path.endswith(".sql") or any(marker in content.upper() for marker in ("JSONB", "ILIKE", "SERIAL", "::JSON", "CREATE EXTENSION")):
 		return "postgres"
+	if path.lower().endswith(".py"):
+		return "python"
 	return "sql"
 
 
@@ -87,11 +106,10 @@ async def list_migrations(repo_id: str, request: Request) -> GitHubMigrationList
 			candidates = [
 				item for item in tree
 				if item.get("type") == "blob"
-				and any(item.get("path", "").startswith(prefix) for prefix in MIGRATION_PREFIXES)
-				and any(item.get("path", "").endswith(suffix) for suffix in MIGRATION_SUFFIXES)
+				and _is_migration_path(item.get("path", ""))
 			]
 			migrations: list[GitHubMigration] = []
-			for item in sorted(candidates, key=lambda value: value["path"])[:MIGRATION_LIMIT]:
+			for item in sorted(candidates, key=lambda value: value["path"].casefold())[:MIGRATION_LIMIT]:
 				content = ""
 				if item.get("size", 0) <= 100_000:
 					blob_path = f"/repos/{full_name}/git/blobs/{item['sha']}"
