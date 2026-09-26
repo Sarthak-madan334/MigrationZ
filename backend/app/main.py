@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.models.schemas import HealthResponse
-from app.routers import auth, rehearsal, repos
+from app.routers import auth, faq, rehearsal, repos
 
 app = FastAPI(title="Migration Rehearsal Agent")
 app.add_middleware(
@@ -15,6 +15,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api")
 app.include_router(repos.router, prefix="/api")
 app.include_router(rehearsal.router, prefix="/api")
+app.include_router(faq.router, prefix="/api")
 
 
 @app.get("/health", response_model=HealthResponse)

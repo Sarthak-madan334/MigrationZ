@@ -34,3 +34,4 @@ export function createRehearsal() {
 
 export function getRunStatus(runId: string) { return request<RunStatus>(`/rehearsal/${runId}/status`); }
 export function getRunResult(runId: string) { return request<RehearsalResult>(`/rehearsal/${runId}/result`); }
+export function askFaqQuestion(question: string) { return request<{ answer: string }>("/faq/ask", { method: "POST", body: JSON.stringify({ question }) }); }

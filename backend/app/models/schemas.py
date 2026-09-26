@@ -66,3 +66,11 @@ class RunResultResponse(BaseModel):
     run_id: UUID
     verdict: Literal["regressed", "clean"]
     queries: list[QueryResult]
+
+
+class FaqQuestionRequest(BaseModel):
+    question: str
+
+
+class FaqAnswerResponse(BaseModel):
+    answer: str
