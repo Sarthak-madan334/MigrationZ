@@ -28,11 +28,40 @@ html {
 
 body {
 	margin: 0;
-	background-color: var(--bg-primary);
-	background-image: radial-gradient(circle at top, rgba(91, 140, 255, 0.12), transparent 38%), linear-gradient(rgba(91, 140, 255, 0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(91, 140, 255, 0.035) 1px, transparent 1px);
-	background-size: auto, 44px 44px, 44px 44px;
+	isolation: isolate;
+	background-color: #060a10;
+	background-image:
+		radial-gradient(ellipse 660px 520px at 82% 42%, rgba(70, 220, 205, 0.12), transparent 72%),
+		radial-gradient(ellipse 620px 480px at 34% 31%, color-mix(in srgb, var(--accent-focus) 7%, transparent), transparent 74%),
+		radial-gradient(ellipse 740px 560px at 30% 90%, color-mix(in srgb, var(--accent-signal) 5%, transparent), transparent 76%),
+		linear-gradient(145deg, #080c13 0%, #0b111b 38%, #081218 72%, #060a10 100%);
+	background-repeat: no-repeat;
+	background-attachment: fixed;
 	color: var(--text-primary);
 	font-family: var(--font-body);
+}
+
+body::before,
+body::after {
+	position: fixed;
+	inset: 0;
+	z-index: -1;
+	content: "";
+	pointer-events: none;
+}
+
+body::before {
+	background-image: linear-gradient(rgba(91, 140, 255, 0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(91, 140, 255, 0.045) 1px, transparent 1px);
+	background-size: 64px 64px;
+	-webkit-mask-image: radial-gradient(ellipse 84% 100% at 50% 0%, #000 0%, rgba(0, 0, 0, 0.7) 52%, transparent 100%);
+	mask-image: radial-gradient(ellipse 84% 100% at 50% 0%, #000 0%, rgba(0, 0, 0, 0.7) 52%, transparent 100%);
+}
+
+body::after {
+	background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+	background-size: 180px 180px;
+	opacity: 0.025;
+	mix-blend-mode: soft-light;
 }
 
 button, a { -webkit-tap-highlight-color: transparent; }
@@ -135,10 +164,23 @@ button:focus-visible, a:focus-visible, input:focus-visible {
 
 .hero-spotlight {
 	position: absolute;
+	z-index: 0;
 	inset: 8% 16% auto 12%;
 	height: 360px;
-	background: radial-gradient(circle, rgba(91, 140, 255, 0.14), rgba(91, 140, 255, 0) 60%);
-	filter: blur(10px);
+	background: radial-gradient(ellipse at 38% 45%, color-mix(in srgb, var(--accent-focus) 6%, transparent), transparent 72%);
+	filter: blur(24px);
+	pointer-events: none;
+}
+
+.hero-shell::after {
+	position: absolute;
+	z-index: 0;
+	right: 0;
+	bottom: 18%;
+	left: 0;
+	height: 1px;
+	background: linear-gradient(90deg, transparent 4%, rgba(91, 140, 255, 0.025) 34%, rgba(70, 220, 205, 0.07) 53%, transparent 96%);
+	content: "";
 	pointer-events: none;
 }
 
