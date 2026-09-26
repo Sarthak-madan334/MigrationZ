@@ -3,7 +3,6 @@
 Phase 0 proves the core rehearsal path locally: generate a hostile dataset, apply a migration, and compare a representative query before and after the migration.
 
 ## Run Phase 0
-
 Requirements: Python 3.11+, Docker Desktop, and Docker Compose.
 
 ```powershell
