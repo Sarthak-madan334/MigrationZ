@@ -16,6 +16,12 @@ class Settings:
     groq_api_key: str | None = os.getenv("GROQ_API_KEY")
     groq_model: str = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
     groq_temperature: float = float(os.getenv("GROQ_TEMPERATURE", "0.35"))
+    github_client_id: str | None = os.getenv("GITHUB_CLIENT_ID")
+    github_client_secret: str | None = os.getenv("GITHUB_CLIENT_SECRET")
+    github_callback_url: str = os.getenv("GITHUB_CALLBACK_URL", "http://localhost:8000/api/auth/github/callback")
+    frontend_url: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    github_session_cookie_secure: bool = os.getenv("GITHUB_SESSION_COOKIE_SECURE", "false").lower() == "true"
+    github_session_ttl_seconds: int = int(os.getenv("GITHUB_SESSION_TTL_SECONDS", "28800"))
 
     @property
     def postgres_dsn(self) -> str:

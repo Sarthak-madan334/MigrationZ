@@ -26,13 +26,17 @@ export type BisectResult = {
   bisection_trail: number[];
   repro_script_url: string;
 };
+export type GitHubUser = { login: string; avatar_url: string };
+export type GitHubRepo = { id: string; full_name: string; default_branch: string };
+export type GitHubMigration = { path: string; diff_preview: string; detected_dialect: string };
 export type FaqTurn = { question: string; answer: string };
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${apiBase}${path}`, { ...init, headers: { "Content-Type": "application/json", ...init?.headers } });
+  const response = await fetch(`${apiBase}${path}`, { ...init, credentials: "include", headers: { "Content-Type": "application/json", ...init?.headers } });
   if (!response.ok) throw new Error(`API request failed: ${response.status}`);
+  if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
 }
 
@@ -51,4 +55,9 @@ export function bisectQuery(runId: string, queryId: string) {
 export function getReproScriptUrl(runId: string, queryId: string) {
   return `${apiBase}/rehearsal/${encodeURIComponent(runId)}/cause/${encodeURIComponent(queryId)}/repro.sql`;
 }
+export function beginGitHubOAuth() { return request<{ authorization_url: string }>("/auth/github/authorize"); }
+export function getGitHubSession() { return request<{ user: GitHubUser }>("/auth/github/session"); }
+export function listGitHubRepos() { return request<{ repos: GitHubRepo[] }>("/repos"); }
+export function listGitHubMigrations(repoId: string) { return request<{ migrations: GitHubMigration[] }>(`/repos/${encodeURIComponent(repoId)}/migrations`); }
+export function disconnectGitHub() { return request<void>("/auth/github/logout", { method: "POST" }); }
 export function askFaqQuestion(question: string, history: FaqTurn[] = []) { return request<{ answer: string }>("/faq/ask", { method: "POST", body: JSON.stringify({ question, history }) }); }

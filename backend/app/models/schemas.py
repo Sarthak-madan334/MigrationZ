@@ -80,6 +80,44 @@ class BisectResponse(BaseModel):
     repro_script_url: str
 
 
+class GitHubUserResponse(BaseModel):
+    login: str
+    avatar_url: str
+
+
+class GitHubSessionResponse(BaseModel):
+    user: GitHubUserResponse
+
+
+class GitHubAuthorizationResponse(BaseModel):
+    authorization_url: str
+
+
+class GitHubOAuthCallbackRequest(BaseModel):
+    code: str = Field(min_length=1)
+    state: str = Field(min_length=1)
+
+
+class GitHubRepo(BaseModel):
+    id: str
+    full_name: str
+    default_branch: str
+
+
+class GitHubRepoList(BaseModel):
+    repos: list[GitHubRepo]
+
+
+class GitHubMigration(BaseModel):
+    path: str
+    diff_preview: str
+    detected_dialect: str
+
+
+class GitHubMigrationList(BaseModel):
+    migrations: list[GitHubMigration]
+
+
 class FaqTurn(BaseModel):
     question: str
     answer: str

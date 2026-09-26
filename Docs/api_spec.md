@@ -6,20 +6,39 @@ All responses are JSON. All timestamps are ISO 8601 UTC.
 
 ## 1. Auth / Repo connection
 
+### `GET /auth/github/authorize`
+Returns a GitHub authorization URL and sets a short-lived, HttpOnly OAuth state cookie. The app requests only `read:user`; repo metadata and contents are read from public repositories through public GitHub endpoints. Private repository access requires a GitHub App configured with read-only Contents permission.
+
+**Response**
+```json
+{ "authorization_url": "https://github.com/login/oauth/authorize?..." }
+```
+
+The browser navigates to this URL. GitHub returns to `GET /auth/github/callback` with `code` and `state`. The callback exchanges the code server-side, stores the token in a process-local session store, sets an HttpOnly session cookie, and redirects to `/connect?github=connected`. Sessions expire after the configured TTL and are lost on backend restart; use a single backend worker for the MVP.
+
+If the user denies authorization, the callback redirects to `/connect?github_error=authorization_cancelled` after validating state.
+
+### `GET /auth/github/session`
+Returns the authenticated GitHub user's public profile. Requires the session cookie.
+
 ### `POST /auth/github/callback`
-Exchanges GitHub OAuth code for an access token (read-only repo scope).
+API alternative for exchanging an OAuth code. Requires the `code` and matching `state` cookie; the access token is never returned to the browser.
 
 **Body**
 ```json
-{ "code": "string" }
+{ "code": "string", "state": "string" }
 ```
 **Response**
 ```json
-{ "access_token": "string", "user": { "login": "string", "avatar_url": "string" } }
+{ "user": { "login": "string", "avatar_url": "string" } }
 ```
+The response also sets the HttpOnly session cookie.
+
+### `POST /auth/github/logout`
+Revokes the current in-memory session and clears the session cookie.
 
 ### `GET /repos`
-Lists repos accessible to the authenticated user.
+Lists the authenticated user's public repos. Private-repository support requires a GitHub App installation configured with read-only Contents permission; this OAuth App flow intentionally avoids write-capable repository scopes.
 
 **Response**
 ```json
