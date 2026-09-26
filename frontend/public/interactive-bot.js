@@ -53,8 +53,8 @@ class InteractiveBot extends HTMLElement {
 
         .bubble {
           position: absolute;
-          right: 100%;
-          bottom: 54px;
+          left: 50%;
+          bottom: calc(100% - 6px);
           padding: 10px 14px;
           border-radius: 16px;
           border: 1px solid var(--bubble-border);
@@ -64,21 +64,22 @@ class InteractiveBot extends HTMLElement {
           letter-spacing: 0.01em;
           color: var(--bubble-text);
           white-space: nowrap;
-          transform-origin: bottom right;
+          transform: translateX(-50%);
+          transform-origin: bottom center;
           animation: bubble-in 420ms cubic-bezier(.2, .9, .2, 1) both;
         }
 
         .bubble::after {
           content: "";
           position: absolute;
-          right: 22px;
+          left: 50%;
           bottom: -7px;
           width: 12px;
           height: 12px;
           background: var(--bubble-bg);
           border-right: 1px solid var(--bubble-border);
           border-bottom: 1px solid var(--bubble-border);
-          transform: rotate(45deg);
+          transform: translateX(-50%) rotate(45deg);
         }
 
         .bot-stage {
@@ -238,8 +239,8 @@ class InteractiveBot extends HTMLElement {
         }
 
         @keyframes bubble-in {
-          0% { opacity: 0; transform: translateX(10px) scale(0.96); }
-          100% { opacity: 1; transform: translateX(0) scale(1); }
+          0% { opacity: 0; transform: translateX(calc(-50% + 10px)) translateY(6px) scale(0.96); }
+          100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
         }
 
         @keyframes bob {
@@ -285,7 +286,8 @@ class InteractiveBot extends HTMLElement {
           }
 
           .bubble {
-            bottom: 48px;
+            left: 50%;
+            bottom: calc(100% - 6px);
             font-size: 0.72rem;
             padding: 9px 12px;
           }
