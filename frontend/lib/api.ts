@@ -1,4 +1,4 @@
-export type RunStage = "queued" | "provisioning" | "seeding" | "migrating" | "querying" | "analyzing" | "done" | "failed";
+export type RunStage = "queued" | "provisioning" | "seeding" | "migrating" | "querying" | "analyzing" | "bisecting" | "done" | "failed";
 
 export type RunStatus = {
   run_id: string;
@@ -19,6 +19,13 @@ export type QueryResult = {
 };
 
 export type RehearsalResult = { run_id: string; verdict: "regressed" | "clean"; queries: QueryResult[] };
+export type BisectResult = {
+  query_id: string;
+  minimal_condition: string;
+  minimal_row_count: number;
+  bisection_trail: number[];
+  repro_script_url: string;
+};
 export type FaqTurn = { question: string; answer: string };
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
@@ -35,4 +42,13 @@ export function createRehearsal() {
 
 export function getRunStatus(runId: string) { return request<RunStatus>(`/rehearsal/${runId}/status`); }
 export function getRunResult(runId: string) { return request<RehearsalResult>(`/rehearsal/${runId}/result`); }
+export function bisectQuery(runId: string, queryId: string) {
+  return request<BisectResult>(`/rehearsal/${encodeURIComponent(runId)}/bisect`, {
+    method: "POST",
+    body: JSON.stringify({ query_id: queryId }),
+  });
+}
+export function getReproScriptUrl(runId: string, queryId: string) {
+  return `${apiBase}/rehearsal/${encodeURIComponent(runId)}/cause/${encodeURIComponent(queryId)}/repro.sql`;
+}
 export function askFaqQuestion(question: string, history: FaqTurn[] = []) { return request<{ answer: string }>("/faq/ask", { method: "POST", body: JSON.stringify({ question, history }) }); }

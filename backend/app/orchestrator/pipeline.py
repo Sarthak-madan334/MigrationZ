@@ -159,6 +159,7 @@ def _median_query_latency(connection: psycopg.Connection, query: str) -> float:
 def _build_repro_script(
     connection: psycopg.Connection,
     rows: tuple[OrderRow, ...],
+    row_ids: dict[int, int],
     query: str,
 ) -> str:
     statements = [
@@ -169,6 +170,7 @@ def _build_repro_script(
         values = []
         for row in rows:
             literals = (
+                row_ids[id(row)],
                 row.customer_email,
                 row.status,
                 row.total_cents,
@@ -177,7 +179,7 @@ def _build_repro_script(
             )
             values.append("(" + ", ".join(psycopg_sql.Literal(value).as_string(connection) for value in literals) + ")")
         statements.append(
-            "INSERT INTO orders (customer_email, status, total_cents, created_at, legacy_format) VALUES\n"
+            "INSERT INTO orders (id, customer_email, status, total_cents, created_at, legacy_format) VALUES\n"
             + ",\n".join(values)
             + ";"
         )
@@ -242,49 +244,49 @@ def _run_bisection(
             duplication_rate=float(corruption_profile.get("duplication_rate", 0.05)),
             legacy_format_rate=float(corruption_profile.get("legacy_format_rate", 0.02)),
         ))
+        row_ids = {id(row): index for index, row in enumerate(rows, start=1)}
+        seed_orders(connection, rows)
+        with connection.cursor() as cursor:
+            cursor.execute("CREATE INDEX orders_created_at_idx ON orders (created_at)")
+        connection.commit()
+        connection.execute("ANALYZE orders")
         preserve_plan_change = _plan_signature(baseline_plan_before) != _plan_signature(baseline_plan_after)
 
         def reproduces(candidate: tuple[OrderRow, ...]) -> bool:
-            with connection.cursor() as cursor:
-                cursor.execute("TRUNCATE TABLE orders RESTART IDENTITY")
-                cursor.execute("DROP INDEX IF EXISTS orders_created_at_idx")
-                cursor.execute("DROP INDEX IF EXISTS orders_status_idx")
-            connection.commit()
+            connection.execute("SAVEPOINT bisection_candidate")
+            try:
+                candidate_ids = [row_ids[id(row)] for row in candidate]
+                with connection.cursor() as cursor:
+                    cursor.execute("DELETE FROM orders WHERE NOT (id = ANY(%s))", (candidate_ids,))
+                connection.execute("ANALYZE orders")
+                before_plan = explain_query(connection, query)
+                if not preserve_plan_change:
+                    before_latency = _median_query_latency(connection, query)
 
-            seed_orders(connection, list(candidate))
-            with connection.cursor() as cursor:
-                cursor.execute("CREATE INDEX orders_created_at_idx ON orders (created_at)")
-            connection.commit()
-            connection.execute("ANALYZE orders")
-            before_plan = explain_query(connection, query)
-            if not preserve_plan_change:
-                before_latency = _median_query_latency(connection, query)
+                with connection.cursor() as cursor:
+                    cursor.execute("DROP INDEX orders_created_at_idx")
+                    cursor.execute("CREATE INDEX orders_status_idx ON orders (status)")
+                connection.execute("ANALYZE orders")
+                after_plan = explain_query(connection, query)
+                if not preserve_plan_change:
+                    after_latency = _median_query_latency(connection, query)
 
-            with connection.cursor() as cursor:
-                cursor.execute("DROP INDEX orders_created_at_idx")
-                cursor.execute("CREATE INDEX orders_status_idx ON orders (status)")
-            connection.commit()
-            connection.execute("ANALYZE orders")
-            after_plan = explain_query(connection, query)
-            if not preserve_plan_change:
-                after_latency = _median_query_latency(connection, query)
-
-            with connection.cursor() as cursor:
-                cursor.execute("DROP INDEX orders_status_idx")
-                cursor.execute("CREATE INDEX orders_created_at_idx ON orders (created_at)")
-            connection.commit()
-            connection.execute("ANALYZE orders")
-
-            if preserve_plan_change:
-                return _plan_signature(before_plan) != _plan_signature(after_plan)
-            return after_latency >= before_latency * 3
+                if preserve_plan_change:
+                    return _plan_signature(before_plan) != _plan_signature(after_plan)
+                return after_latency >= before_latency * 3
+            finally:
+                connection.execute("ROLLBACK TO SAVEPOINT bisection_candidate")
+                connection.execute("RELEASE SAVEPOINT bisection_candidate")
+                connection.commit()
 
         result = minimize_failing_subset(rows, reproduces)
-        publish("bisecting", 96, f"Found a reproducing subset of {len(result.subset):,} rows")
-        script = _build_repro_script(connection, result.subset, query)
+        minimal_row_count = len(result.subset)
+        row_label = "order" if minimal_row_count == 1 else "orders"
+        publish("bisecting", 96, f"Found a reproducing subset of {minimal_row_count:,} {row_label}")
+        script = _build_repro_script(connection, result.subset, row_ids, query)
         return BisectionOutcome(
-            minimal_condition=f"The query regression persists with {len(result.subset):,} generated orders.",
-            minimal_row_count=len(result.subset),
+            minimal_condition=f"The query regression persists with {minimal_row_count:,} generated {row_label}.",
+            minimal_row_count=minimal_row_count,
             bisection_trail=result.trail,
             repro_script=script,
         )
