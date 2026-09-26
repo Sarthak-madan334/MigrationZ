@@ -1,6 +1,10 @@
 from dataclasses import dataclass
 import os
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 @dataclass(frozen=True)
 class Settings:
@@ -9,6 +13,9 @@ class Settings:
     postgres_db: str = os.getenv("POSTGRES_DB", "migration_rehearsal")
     postgres_user: str = os.getenv("POSTGRES_USER", "rehearsal")
     postgres_password: str = os.getenv("POSTGRES_PASSWORD", "rehearsal")
+    groq_api_key: str | None = os.getenv("GROQ_API_KEY")
+    groq_model: str = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
+    groq_temperature: float = float(os.getenv("GROQ_TEMPERATURE", "0.35"))
 
     @property
     def postgres_dsn(self) -> str:
