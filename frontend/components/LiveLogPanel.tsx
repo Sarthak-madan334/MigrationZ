@@ -1,8 +1,16 @@
 import { Terminal } from "lucide-react";
+import type { RunConnection } from "@/lib/sse";
 
 type LogLine = { ts: string; level: "info" | "warn" | "error"; message: string };
 
-export function LiveLogPanel({ lines }: { lines: LogLine[] }) {
+const connectionLabels: Record<RunConnection, string> = {
+  connecting: "connecting",
+  streaming: "live stream",
+  polling: "polling fallback",
+  disconnected: "reconnecting",
+};
+
+export function LiveLogPanel({ lines, connection }: { lines: LogLine[]; connection: RunConnection }) {
   return (
     <section className="panel runtime-panel">
       <div className="panel-head log-header">
@@ -10,9 +18,9 @@ export function LiveLogPanel({ lines }: { lines: LogLine[] }) {
           <Terminal size={14} className="text-mono" />
           Live event stream
         </div>
-        <span className="connection-pill">
+        <span className={`connection-pill is-${connection}`} role="status">
           <span className="status-dot" aria-hidden="true" />
-          connected
+          {connectionLabels[connection]}
         </span>
       </div>
 

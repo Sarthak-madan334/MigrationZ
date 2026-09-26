@@ -898,6 +898,13 @@ button:focus-visible, a:focus-visible, input:focus-visible {
 	color: var(--accent-signal);
 }
 
+.connection-pill.is-polling { color: var(--accent-focus); }
+.connection-pill.is-connecting,
+.connection-pill.is-disconnected { color: var(--accent-warn); }
+.connection-pill.is-polling .status-dot { background: var(--accent-focus); box-shadow: 0 0 0 6px rgba(91, 140, 255, 0.12); }
+.connection-pill.is-connecting .status-dot,
+.connection-pill.is-disconnected .status-dot { background: var(--accent-warn); box-shadow: 0 0 0 6px rgba(255, 176, 32, 0.12); }
+
 .status-dot {
 	display: inline-block;
 	width: 8px;

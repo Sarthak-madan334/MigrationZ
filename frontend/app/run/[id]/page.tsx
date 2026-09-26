@@ -6,6 +6,7 @@ import { use, useEffect, useState } from "react";
 import { LiveLogPanel } from "@/components/LiveLogPanel";
 import { PipelineStages } from "@/components/PipelineStages";
 import { getRunStatus, type RunStage, type RunStatus } from "@/lib/api";
+import { subscribeToRunStatus, type RunConnection } from "@/lib/sse";
 
 const fallbackLogs = [{ ts: "--:--:--", level: "info" as const, message: "Waiting for the orchestration stream..." }];
 
@@ -16,7 +17,7 @@ export default function RunPage({ params }: { params: Promise<{ id: string }> })
 
 function RunContent({ id }: { id: string }) {
 	const [status, setStatus] = useState<RunStatus>({ run_id: id, stage: "queued", log: fallbackLogs, progress_pct: 0 });
-	const [error, setError] = useState(false);
+	const [connection, setConnection] = useState<RunConnection>("connecting");
 	const [refreshing, setRefreshing] = useState(false);
 
 	async function refreshStatus() {
@@ -24,37 +25,25 @@ function RunContent({ id }: { id: string }) {
 		try {
 			const next = await getRunStatus(id);
 			setStatus(next);
-			setError(false);
 		} catch {
-			setError(true);
+			setConnection("disconnected");
 		} finally {
 			window.setTimeout(() => setRefreshing(false), 400);
 		}
 	}
 
 	useEffect(() => {
-		let active = true;
-		const poll = async () => {
-			try {
-				const next = await getRunStatus(id);
-				if (active) {
-					setStatus(next);
-					setError(false);
-				}
-			} catch {
-				if (active) setError(true);
-			}
-		};
-		poll();
-		const timer = window.setInterval(poll, 1800);
-		return () => {
-			active = false;
-			window.clearInterval(timer);
-		};
+		return subscribeToRunStatus(id, setStatus, setConnection);
 	}, [id]);
 
-	const visibleStage: RunStage = error ? "queued" : status.stage;
-	const log = error ? [{ ts: "now", level: "warn" as const, message: "Run status is not available from the Phase 0 backend yet." }] : status.log;
+	useEffect(() => {
+		if (status.stage !== "done") return;
+		const timer = window.setTimeout(() => { window.location.replace(`/run/${id}/report`); }, 600);
+		return () => window.clearTimeout(timer);
+	}, [id, status.stage]);
+
+	const visibleStage: RunStage = status.stage;
+	const log = status.log.length ? status.log : fallbackLogs;
 	const progressValue = Math.min(Math.max(status.progress_pct ?? 0, 0), 100);
 
 	return (
@@ -86,7 +75,7 @@ function RunContent({ id }: { id: string }) {
 					</div>
 					<div className="progress-copy">
 						<div className="progress-label">Pipeline progress</div>
-						<div className="progress-meta">{error ? "Awaiting backend signal" : "Live status stream"}</div>
+						<div className="progress-meta">{connection === "streaming" ? "Live status stream" : connection === "polling" ? "Polling status" : connection === "disconnected" ? "Reconnecting to backend" : "Connecting to backend"}</div>
 					</div>
 				</div>
 			</div>
@@ -107,14 +96,16 @@ function RunContent({ id }: { id: string }) {
 					</div>
 					<PipelineStages stage={visibleStage} />
 				</section>
-				<LiveLogPanel lines={log} />
+				<LiveLogPanel lines={log} connection={connection} />
 			</div>
 
+			{status.stage === "failed" ? (
+				<div className="error-banner" role="alert">{status.log.at(-1)?.message ?? "The rehearsal failed. Check the backend and try again."}</div>
+			) : null}
+			{connection === "disconnected" ? <p className="mt-4 text-sm text-warn" role="status">The backend is unreachable. Retrying the run status automatically.</p> : null}
 			{status.stage === "done" ? (
 				<div className="run-footer">
-					<Link className="button-primary" href={`/run/${id}/report`}>
-						Open results <ArrowRight size={16} />
-					</Link>
+					<Link className="button-primary" href={`/run/${id}/report`}>Open results <ArrowRight size={16} /></Link>
 				</div>
 			) : null}
 		</main>

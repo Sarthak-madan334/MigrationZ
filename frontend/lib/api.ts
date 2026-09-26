@@ -19,6 +19,7 @@ export type QueryResult = {
 };
 
 export type RehearsalResult = { run_id: string; verdict: "regressed" | "clean"; queries: QueryResult[] };
+export type RunHistoryItem = { run_id: string; repo: string; migration: string; verdict: "regressed" | "clean" | "running" | "failed"; created_at: string };
 export type BisectResult = {
   query_id: string;
   minimal_condition: string;
@@ -46,6 +47,7 @@ export function createRehearsal() {
 
 export function getRunStatus(runId: string) { return request<RunStatus>(`/rehearsal/${runId}/status`); }
 export function getRunResult(runId: string) { return request<RehearsalResult>(`/rehearsal/${runId}/result`); }
+export function getRunHistory() { return request<{ runs: RunHistoryItem[] }>("/rehearsal/history"); }
 export function bisectQuery(runId: string, queryId: string) {
   return request<BisectResult>(`/rehearsal/${encodeURIComponent(runId)}/bisect`, {
     method: "POST",

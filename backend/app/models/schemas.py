@@ -51,6 +51,18 @@ class RunStatusResponse(BaseModel):
     progress_pct: int
 
 
+class RunHistoryItem(BaseModel):
+    run_id: UUID
+    repo: str
+    migration: str
+    verdict: Literal["regressed", "clean", "running", "failed"]
+    created_at: datetime
+
+
+class RunHistoryResponse(BaseModel):
+    runs: list[RunHistoryItem]
+
+
 class QueryResult(BaseModel):
     id: str
     sql: str

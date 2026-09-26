@@ -2,18 +2,51 @@ from uuid import UUID, uuid4
 
 import asyncio
 from fastapi import APIRouter, HTTPException, Response
+from fastapi.responses import StreamingResponse
 
-from app.models.schemas import BisectRequest, BisectResponse, RunRequest, RunResponse, RunResultResponse, RunStatusResponse
+from app.models.schemas import BisectRequest, BisectResponse, RunHistoryResponse, RunRequest, RunResponse, RunResultResponse, RunStatusResponse
 from app.orchestrator.pipeline import run_bisection
 from app.orchestrator.run_manager import manager
 
 router = APIRouter(prefix="/rehearsal", tags=["rehearsal"])
 
 
+@router.get("/{run_id}/stream")
+async def rehearsal_stream(run_id: UUID) -> StreamingResponse:
+    if manager.get(run_id) is None:
+        raise HTTPException(status_code=404, detail="run_not_found")
+
+    async def events():
+        offset = 0
+        while True:
+            updates = manager.get_status_events(run_id, offset)
+            if updates is None:
+                break
+            snapshots, total, terminal = updates
+            for snapshot in snapshots:
+                yield f"data: {snapshot.model_dump_json()}\n\n"
+            offset += len(snapshots)
+            if terminal and offset >= total:
+                break
+            if not snapshots:
+                await asyncio.sleep(0.2)
+
+    return StreamingResponse(
+        events(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
 @router.post("/run", response_model=RunResponse, status_code=202)
 async def start_rehearsal(request: RunRequest) -> RunResponse:
     run_id = manager.create(request)
     return RunResponse(run_id=run_id, status="queued")
+
+
+@router.get("/history", response_model=RunHistoryResponse)
+async def rehearsal_history() -> RunHistoryResponse:
+    return RunHistoryResponse(runs=manager.list_history())
 
 
 @router.post("/{run_id}/bisect", response_model=BisectResponse)

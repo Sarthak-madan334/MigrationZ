@@ -15,6 +15,7 @@ class RunRecord:
     status: RunStatusResponse
     result: RunResultResponse | None = None
     bisections: dict[str, tuple[BisectResponse, str]] = field(default_factory=dict)
+    status_events: list[RunStatusResponse] = field(default_factory=list)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -29,13 +30,43 @@ class RunManager:
         now = datetime.now(timezone.utc)
         status = RunStatusResponse(run_id=run_id, stage="queued", log=[], progress_pct=0)
         with self._lock:
-            self._runs[run_id] = RunRecord(request=request, status=status, created_at=now)
+            record = RunRecord(request=request, status=status, created_at=now, status_events=[status])
+            self._runs[run_id] = record
         asyncio.create_task(self._execute(run_id))
         return run_id
 
     def get(self, run_id: UUID) -> RunRecord | None:
         with self._lock:
             return self._runs.get(run_id)
+
+    def get_status_events(
+        self, run_id: UUID, offset: int
+    ) -> tuple[list[RunStatusResponse], int, bool] | None:
+        with self._lock:
+            record = self._runs.get(run_id)
+            if record is None:
+                return None
+            total = len(record.status_events)
+            terminal = record.status.stage in {"done", "failed"}
+            return record.status_events[offset:], total, terminal
+
+    def list_history(self) -> list[dict[str, object]]:
+        with self._lock:
+            records = sorted(self._runs.items(), key=lambda item: item[1].created_at, reverse=True)
+            return [
+                {
+                    "run_id": run_id,
+                    "repo": record.request.repo_id,
+                    "migration": record.request.migration_path,
+                    "verdict": (
+                        record.result.verdict
+                        if record.result is not None
+                        else "failed" if record.status.stage == "failed" else "running"
+                    ),
+                    "created_at": record.created_at,
+                }
+                for run_id, record in records
+            ]
 
     def get_bisection(self, run_id: UUID, query_id: str) -> tuple[BisectResponse, str] | None:
         with self._lock:
@@ -72,6 +103,7 @@ class RunManager:
             record = self._runs[run_id]
             entry = LogEntry(ts=datetime.now(timezone.utc), level=level, message=message)
             record.status = RunStatusResponse(run_id=run_id, stage=stage, log=[*record.status.log, entry], progress_pct=progress)
+            record.status_events.append(record.status)
 
     def publish(self, run_id: UUID, stage: str, progress: int, message: str, level: str = "info") -> None:
         self._publish(run_id, stage, progress, message, level)

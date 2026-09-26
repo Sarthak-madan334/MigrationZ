@@ -97,7 +97,7 @@ Poll or SSE endpoint for live progress (drives the pipeline UI in `ui_ux.md` §4
 }
 ```
 
-`GET /rehearsal/:run_id/stream` provides the same data as Server-Sent Events for real-time push instead of polling.
+`GET /rehearsal/:run_id/stream` sends each changed status as a Server-Sent Event whose `data` is the same JSON object returned by the status endpoint. It sends the current snapshot immediately and closes after `done` or `failed`; clients should fall back to status polling if the stream disconnects.
 
 ### `GET /rehearsal/:run_id/result`
 Full results once `stage == done`.
@@ -144,13 +144,13 @@ Triggers (or re-triggers) root-cause bisection for a specific regressed query. N
 Downloads the minimal reproducible SQL script (schema + minimal seed data + the failing query).
 
 ### `GET /rehearsal/history`
-Lists past runs for the History screen.
+Lists runs from the current backend process for the History screen. The MVP run manager keeps these records in memory, so a backend restart clears the list.
 
 **Response**
 ```json
 {
   "runs": [
-    { "run_id": "uuid", "repo": "org/repo", "migration": "0042_add_index.sql", "verdict": "regressed", "created_at": "2026-09-25T10:00:00Z" }
+    { "run_id": "uuid", "repo": "org/repo", "migration": "0042_add_index.sql", "verdict": "regressed | clean | running | failed", "created_at": "2026-09-25T10:00:00Z" }
   ]
 }
 ```
