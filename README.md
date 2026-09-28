@@ -12,4 +12,4 @@ pip install -r backend\requirements.txt
 python backend\run_phase0.py
 ```
 
-The CLI provisions PostgreSQL on port `5433`, seeds 50,000 orders, applies the hardcoded migration, runs the sample query before and after it, prints latency, and tears the database down.
+The CLI provisions PostgreSQL on port `5433`, seeds 50,000 orders, applies the hardcoded migration, runs the sample query before and after it, prints latency, and tears the database down
